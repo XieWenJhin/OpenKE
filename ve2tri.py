@@ -19,12 +19,14 @@ if __name__ == "__main__":
         f.write(str(num_triples))
         f.write('\n')
         for idx, row in edf.iterrows():
-            f.write(str(row['source_id:int']))
-            f.write(' ')
-            f.write(str(row['target_id:int']))
-            f.write(' ')
-            f.write(str(row['label_id:int']))
-            f.write('\n')
+            # can't train dbpedia on complete graph
+            if row['label_id:int'] in {48, 49, 50, 51, 52}:
+                f.write(str(row['source_id:int']))
+                f.write(' ')
+                f.write(str(row['target_id:int']))
+                f.write(' ')
+                f.write(str(row['label_id:int']))
+                f.write('\n')
             if max_elabel < row['label_id:int']:
                 max_elabel = row['label_id:int']
     

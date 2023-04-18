@@ -7,18 +7,18 @@ from openke.data import TrainDataLoader, TestDataLoader
 
 # dataloader for training
 train_dataloader = TrainDataLoader(
-	in_path = "./datasets/IMDB/", 
-	nbatches = 2000,
+	in_path = "./datasets/YAGO/", 
+	nbatches = 1000,
 	threads = 8, 
 	sampling_mode = "normal", 
 	bern_flag = 1, 
 	filter_flag = 1, 
-	neg_ent = 10,
+	neg_ent = 25,
 	neg_rel = 0
 )
 
 # dataloader for test
-test_dataloader = TestDataLoader("./datasets/IMDB/", "link", type_constrain=False)
+test_dataloader = TestDataLoader("./datasets/YAGO/", "link", type_constrain=False)
 
 # define the model
 simple = SimplE(
@@ -37,11 +37,11 @@ model = NegativeSampling(
 
 
 # train the model
-trainer = Trainer(model = model, data_loader = train_dataloader, train_times = 5, alpha = 0.5, use_gpu = True, opt_method = "adagrad")
+trainer = Trainer(model = model, data_loader = train_dataloader, train_times = 500, alpha = 0.5, use_gpu = True, opt_method = "adagrad")
 trainer.run()
-simple.save_checkpoint('./checkpoint/imdb_simple.ckpt')
+simple.save_checkpoint('./checkpoint/yago_simple.ckpt')
 
 # test the model
-simple.load_checkpoint('./checkpoint/imdb_simple.ckpt')
+simple.load_checkpoint('./checkpoint/yago_simple.ckpt')
 tester = Tester(model = simple, data_loader = test_dataloader, use_gpu = True)
 tester.run_link_prediction(type_constrain = False)

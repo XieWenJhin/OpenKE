@@ -85,7 +85,6 @@ class Trainer(object):
 				weight_decay=self.weight_decay,
 			)
 		print("Finish initializing...")
-		
 		training_range = tqdm(range(self.train_times))
 		for epoch in training_range:
 			res = 0.0
