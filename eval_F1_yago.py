@@ -1,6 +1,6 @@
 import openke
 from openke.config import Trainer, Tester
-from openke.module.model import SimplE, ComplEx
+from openke.module.model import SimplE, ComplEx, RotatE
 from openke.module.loss import SoftplusLoss
 from openke.module.strategy import NegativeSampling
 from openke.data import TrainDataLoader, TestDataLoader
@@ -29,26 +29,38 @@ if __name__ == "__main__":
             dim = 200
         )
         model.load_checkpoint('./checkpoint/yago_simple.ckpt')
+    elif args.model == 'rotate':
+        model = RotatE(
+            ent_tot = 3489226,
+            rel_tot = 66,
+            dim = 150,
+            margin = 6.0,
+            epsilon = 2.0,
+        )
+        model.load_checkpoint('./checkpoint/yago_rotate_10.ckpt')
     model = model.cuda()
     pos = pd.read_csv('/home/LAB/xiewj/neural-mining/datasets/yago/test_edges.csv')
-    neg_fsrc = pd.read_csv('/home/LAB/xiewj/neural-mining/datasets/yago/test_neg_per_src/test_neg_5.csv')
-    neg_fdst = pd.read_csv('/home/LAB/xiewj/neural-mining/datasets/yago/test_neg_per_dst/test_neg_5.csv')
+    neg_fsrc = pd.read_csv('/home/LAB/xiewj/neural-mining/datasets/yago/test_neg_per_src/test_neg_1.csv')
+    neg_fdst = pd.read_csv('/home/LAB/xiewj/neural-mining/datasets/yago/test_neg_per_dst/test_neg_1.csv')
     
     pos_tri = dict()
     pos_tri['batch_h'] = torch.from_numpy(pos['source_id:int'].values).cuda()
     pos_tri['batch_t'] = torch.from_numpy(pos['target_id:int'].values).cuda()
     pos_tri['batch_r'] = torch.from_numpy(pos['label_id:int'].values).cuda()
+    pos_tri['mode'] = 'tail_batch'
 
     neg_fsrc_tri = dict()
     neg_fsrc_tri['batch_h'] = torch.from_numpy(neg_fsrc['source_id:int'].values).cuda()
     neg_fsrc_tri['batch_t'] = torch.from_numpy(neg_fsrc['target_id:int'].values).cuda()
     neg_fsrc_tri['batch_r'] = torch.from_numpy(neg_fsrc['label_id:int'].values).cuda()
-
+    neg_fsrc_tri['mode'] = 'tail_batch'
+    
     neg_fdst_tri = dict()
     neg_fdst_tri['batch_h'] = torch.from_numpy(neg_fdst['source_id:int'].values).cuda()
     neg_fdst_tri['batch_t'] = torch.from_numpy(neg_fdst['target_id:int'].values).cuda()
     neg_fdst_tri['batch_r'] = torch.from_numpy(neg_fdst['label_id:int'].values).cuda()
-
+    neg_fdst_tri['mode'] = 'tail_batch'
+    
     pos_score = -model.predict(pos_tri)
     neg_fsrc_score = -model.predict(neg_fsrc_tri)
     neg_fdst_score = -model.predict(neg_fdst_tri)
@@ -56,18 +68,15 @@ if __name__ == "__main__":
     num_neg = neg_fsrc_score.size
 
     pos_score = torch.from_numpy(pos_score)
-    pos_socre = F.softplus(pos_score)
 
     neg_fsrc_score = torch.from_numpy(neg_fsrc_score)
-    neg_fsrc_socre = F.softplus(neg_fsrc_score)
 
     neg_fdst_score = torch.from_numpy(neg_fdst_score)
-    neg_fdst_socre = F.softplus(neg_fdst_score)
     
     t = dict()
     t['t'] = 0
     t['f1'] = 0
-    for i in range(-100, 0):
+    for i in range(-100, 100):
         alpha = i / 10;
         TP = (pos_score > alpha).sum().item()
         FN = num_pos - TP
@@ -75,16 +84,16 @@ if __name__ == "__main__":
         TN = num_neg - FP
 
     # print(f'TP: {TP}, FN: {FN}, FP: {FP}, TN: {TN}')
-        prec = TP / (TP + FP)
-        recall = TP / (TP + FN)
-        fsrc_f1 = 2 * prec * recall / (prec + recall)
+        prec = TP / (TP + FP + 1e-6)
+        recall = TP / (TP + FN + 1e-6)
+        fsrc_f1 = 2 * prec * recall / (prec + recall + 1e-6)
         
         FP = (neg_fdst_score > alpha).sum().item()
         TN = num_neg - FP
 
-        prec = TP / (TP + FP)
-        recall = TP / (TP + FN)
-        fdst_f1 = 2 * prec * recall / (prec + recall)
+        prec = TP / (TP + FP + 1e-6)
+        recall = TP / (TP + FN + 1e-6)
+        fdst_f1 = 2 * prec * recall / (prec + recall + 1e-6)
 
         f1 = (fsrc_f1 + fdst_f1) / 2
         if f1 > t['f1']:
